@@ -140,6 +140,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 
 @media(max-width:380px){.field-row{grid-template-columns:1fr;}.field-row-3{grid-template-columns:1fr 1fr;}.estimator-grid{flex-wrap:wrap;}.photo-grid{grid-template-columns:1fr;}}
 </style>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#E8501A">
+  <script>
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sasi-jobwalk/sw.js')
+          .then(r => console.log('SW registered'))
+          .catch(e => console.log('SW failed', e));
+      });
+    }
+  </script>
 </head>
 <body>
 
