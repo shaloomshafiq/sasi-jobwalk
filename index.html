@@ -141,6 +141,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 @media(max-width:380px){.field-row{grid-template-columns:1fr;}.field-row-3{grid-template-columns:1fr 1fr;}.estimator-grid{flex-wrap:wrap;}.photo-grid{grid-template-columns:1fr;}}
 </style>
   <link rel="manifest" href="manifest.json">
+  <style>@media print{@page{margin:0.5in;}}</style>
   <meta name="theme-color" content="#E8501A">
   <script>
     if('serviceWorker' in navigator){
@@ -1046,7 +1047,7 @@ function exportPDF(){
     sketchSrc=comp.toDataURL();
   }
 
-  const photoHTML=photos.map(p=>'<div style="display:inline-block;width:45%;margin:4px;vertical-align:top;"><img src="'+(p.markup||p.dataUrl)+'" style="width:100%;border:1px solid #ddd;border-radius:4px;"><div style="font-size:9px;color:#666;margin-top:2px;"><strong>'+p.room+'</strong>'+(p.note?' — '+p.note:'')+'</div></div>').join('');
+  const photoHTML=photos.map(p=>'<div style="display:inline-block;width:44%;margin:4px 1% 8px 1%;vertical-align:top;"><img src="'+(p.markup||p.dataUrl)+'" style="width:100%;border:1px solid #ddd;border-radius:4px;max-height:200px;object-fit:cover;"><div style="font-size:9px;color:#555;margin-top:3px;"><strong>'+p.room+'</strong>'+(p.note?' — '+p.note:'')+'</div></div>').join('');
 
   const sigLine=signatureData
     ?'<img src="'+signatureData+'" style="height:45px;display:block;border-bottom:1px solid #000;max-width:280px;">'
@@ -1092,8 +1093,10 @@ function exportPDF(){
 
   const CSS=`
     *{box-sizing:border-box;}
+    @page{margin:0.45in;size:letter;}
     body{font-family:Arial,sans-serif;font-size:10.5px;color:#000;margin:0;padding:0;}
-    .page{padding:18px 22px;page-break-after:always;min-height:100vh;}
+    .page{padding:14px 18px;page-break-after:always;page-break-inside:auto;overflow:hidden;}
+    .no-break{page-break-inside:avoid;}
     .page:last-child{page-break-after:auto;}
     .sasi-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #E8501A;padding-bottom:8px;margin-bottom:10px;}
     .sasi-logo-text{color:#E8501A;font-weight:bold;font-size:15px;line-height:1.2;}
@@ -1119,7 +1122,12 @@ function exportPDF(){
     .field-line{border-bottom:1px solid #000;min-height:18px;display:inline-block;min-width:120px;}
     p.legal{font-size:9.5px;line-height:1.55;margin:5px 0;}
     .no-print{background:#E8501A;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;}
-    @media print{.no-print{display:none!important;} .page{padding:12px 16px;}}
+    @media print{
+      .no-print{display:none!important;}
+      .page{padding:12px 16px;}
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      @page{margin:0.4in; size:letter;}
+    }
   `;
 
   // ── PAGE 1: JOB-DOX INFO SHEET ──
@@ -1212,8 +1220,8 @@ function exportPDF(){
     <div style="border:1px solid #ccc;padding:8px;min-height:120px;white-space:pre-wrap;font-size:10.5px;">${g('f_scope')||''}</div>
     <h3>SPECIAL INSTRUCTIONS / SPECIAL EQUIPMENT NEEDED:</h3>
     <div style="border:1px solid #ccc;padding:8px;min-height:60px;white-space:pre-wrap;font-size:10.5px;">${g('f_special_instructions')||''}</div>
-    ${sketchSrc?'<h3>Sketch:</h3><img src="'+sketchSrc+'" style="width:100%;max-width:480px;border:1px solid #ddd;display:block;margin:6px 0;">'+(g('f_sketch_notes')?'<p style="font-size:9px;">'+g('f_sketch_notes')+'</p>':''):''}
-    ${photos.length?'<h3>Photos ('+photos.length+'):</h3><div>'+photoHTML+'</div>':''}
+    ${sketchSrc?'<div style="margin-top:10px;"><p style="font-size:11px;font-weight:bold;border-bottom:1px solid #ccc;padding-bottom:3px;margin-bottom:6px;">SKETCH</p><img src="'+sketchSrc+'" style="width:100%;max-width:460px;border:1px solid #ddd;border-radius:4px;display:block;">'+(g('f_sketch_notes')?'<p style="font-size:9px;margin-top:3px;color:#555;">'+g('f_sketch_notes')+'</p>':'')+'</div>':''}
+    ${photos.length?'<div style="margin-top:10px;page-break-inside:avoid;"><p style="font-size:11px;font-weight:bold;border-bottom:1px solid #ccc;padding-bottom:3px;margin-bottom:6px;">PHOTOS ('+photos.length+')</p><div>'+photoHTML+'</div></div>':''}
   </div>`;
 
   // ── PAGE 3: WORK AUTHORIZATION ──
