@@ -1098,7 +1098,8 @@ function stampDown(e){
   const pos=getStampPos(e);
   touchStartPos={x:pos.x,y:pos.y};
 
-  // ── Check delete button on selected stamp ──
+  // ── ALWAYS check for existing item first ──
+  // Delete button check
   if(selectedStamp>=0){
     const s=stampObjects[selectedStamp];
     const dx=pos.x-(s.x+s.w+4),dy=pos.y-(s.y-4);
@@ -1111,40 +1112,39 @@ function stampDown(e){
     }
   }
 
-  // ── Place a new stamp — then AUTO EXIT stamp mode ──
+  // Check if touching an existing stamp — if so, ALWAYS do long-press drag
+  // even if activeStamp is set (existing item takes priority over placing new one)
+  const hit=getStampAt(pos);
+  if(hit>=0){
+    longPressStamp=hit;
+    selectedStamp=hit;
+    renderStamps();
+    longPressTimer=setTimeout(()=>{
+      if(!touchStartPos)return;
+      draggingStamp=true;
+      dragOffX=touchStartPos.x-stampObjects[hit].x;
+      dragOffY=touchStartPos.y-stampObjects[hit].y;
+      if(stampCanvas)stampCanvas.style.cursor='grabbing';
+      showToast('📦 Drag to reposition');
+    }, LONG_PRESS_MS);
+    return; // Stop here — never place on top of existing item
+  }
+
+  // ── Only place new stamp if tapping EMPTY space ──
   if(activeStamp&&STAMP_DEFS[activeStamp]){
     const def=STAMP_DEFS[activeStamp];
     stampObjects.push({type:activeStamp,x:pos.x-def.w/2,y:pos.y-def.h/2,w:def.w,h:def.h});
     selectedStamp=stampObjects.length-1;
     renderStamps();
-    // Auto-exit stamp mode after placing — stops double-placing
-    cancelStamp();
-    showToast('✅ '+def.label+' placed — long-press to move');
+    cancelStamp(); // Auto-exit stamp mode after placing
+    showToast('✅ '+def.label+' placed · long-press to move');
     return;
   }
 
-  // ── Long-press to drag existing stamp ──
-  const hit=getStampAt(pos);
-  if(hit>=0){
-    // Start long-press timer
-    longPressStamp=hit;
-    selectedStamp=hit;
-    renderStamps();
-    longPressTimer=setTimeout(()=>{
-      // Long press confirmed — start drag
-      draggingStamp=true;
-      dragOffX=touchStartPos.x-stampObjects[hit].x;
-      dragOffY=touchStartPos.y-stampObjects[hit].y;
-      stampCanvas.style.cursor='grabbing';
-      // Visual feedback — pulse the item
-      showToast('📦 Drag to move');
-    }, LONG_PRESS_MS);
-  } else {
-    // Tapped empty space — deselect
-    selectedStamp=-1;
-    longPressStamp=-1;
-    renderStamps();
-  }
+  // Tapped empty space with no active stamp — deselect
+  selectedStamp=-1;
+  longPressStamp=-1;
+  renderStamps();
 }
 
 function stampMove(e){
