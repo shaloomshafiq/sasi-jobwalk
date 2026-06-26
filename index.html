@@ -488,7 +488,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
       <button class="tool-btn" id="tb_erase" onclick="setSketchTool('erase')" style="color:var(--red);">✕ Erase</button>
     </div>
     <!-- STAMP LIBRARY -->
-    <div style="padding:6px 10px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);background:var(--gray-50);border-bottom:var(--border);">Tap to Place Items</div>
+    <div style="padding:6px 10px 2px;display:flex;align-items:center;justify-content:space-between;background:var(--gray-50);border-bottom:var(--border);">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);">Tap to Place Items</span>
+      <button id="dragModeBtn" onclick="toggleDragMode()" style="padding:5px 12px;border:1.5px solid #1565C0;border-radius:6px;font-size:12px;font-weight:700;background:white;color:#1565C0;cursor:pointer;">✋ Drag Mode</button>
+    </div>
     <div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;background:var(--gray-50);border-bottom:var(--border);">
       <div style="width:100%;font-size:10px;font-weight:600;color:var(--gray-500);margin-bottom:2px;">🚿 Bathroom</div>
       <button class="stamp-btn" onclick="setStamp('shower')">Shower</button>
@@ -512,7 +515,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
       <button class="stamp-btn" onclick="setStamp('ceilingfan')">⊗ Ceiling Fan</button>
     </div>
     <div id="stampActiveBar" style="display:none;padding:6px 10px;background:#FFF3E0;border-bottom:var(--border);font-size:12px;color:#E65100;font-weight:600;">
-      📍 <span id="stampActiveName"></span> — tap sketch to place · after placing, long-press item to move · <button onclick="cancelStamp()" style="background:none;border:none;color:#E65100;text-decoration:underline;cursor:pointer;font-size:12px;">Cancel</button>
+      📍 <span id="stampActiveName"></span> — tap sketch to place &nbsp;·&nbsp; <button onclick="cancelStamp()" style="background:none;border:none;color:#E65100;text-decoration:underline;cursor:pointer;font-size:12px;">Cancel</button>
+    </div>
+    <div id="dragModeBar" style="display:none;padding:6px 10px;background:#E3F2FD;border-bottom:var(--border);font-size:12px;color:#1565C0;font-weight:600;">
+      ✋ Drag Mode — tap any item then drag it &nbsp;·&nbsp; <button onclick="toggleDragMode()" style="background:none;border:none;color:#1565C0;text-decoration:underline;cursor:pointer;font-size:12px;">Done</button>
     </div>
     <div class="size-bar">
       <label>Width</label>
@@ -1017,11 +1023,42 @@ function setStamp(name){
 function cancelStamp(){
   activeStamp=null;
   selectedStamp=-1;
+  dragModeActive=false;
   setSketchTool('walls');
   document.querySelectorAll('.stamp-btn').forEach(b=>b.classList.remove('active'));
   const bar=document.getElementById('stampActiveBar');
   if(bar)bar.style.display='none';
+  const dbar=document.getElementById('dragModeBar');
+  if(dbar)dbar.style.display='none';
+  const dbtn=document.getElementById('dragModeBtn');
+  if(dbtn){dbtn.style.background='white';dbtn.style.color='#1565C0';}
   renderStamps();
+}
+
+function toggleDragMode(){
+  dragModeActive=!dragModeActive;
+  const dbar=document.getElementById('dragModeBar');
+  const dbtn=document.getElementById('dragModeBtn');
+  const stampBar=document.getElementById('stampActiveBar');
+  if(dragModeActive){
+    // Enter drag mode
+    activeStamp=null; // cancel any active stamp
+    if(stampBar)stampBar.style.display='none';
+    if(dbar)dbar.style.display='block';
+    if(dbtn){dbtn.style.background='#1565C0';dbtn.style.color='white';dbtn.textContent='✋ Drag ON';}
+    // Make stamp canvas active so items are tappable
+    setSketchTool('stamp');
+    document.querySelectorAll('.stamp-btn').forEach(b=>b.classList.remove('active'));
+    if(stampCanvas)stampCanvas.style.cursor='grab';
+  } else {
+    // Exit drag mode
+    if(dbar)dbar.style.display='none';
+    if(dbtn){dbtn.style.background='white';dbtn.style.color='#1565C0';dbtn.textContent='✋ Drag Mode';}
+    selectedStamp=-1;
+    draggingStamp=false;
+    renderStamps();
+    setSketchTool('walls');
+  }
 }
 
 function getStampAt(pos){
@@ -1092,14 +1129,14 @@ let longPressTimer=null;
 let longPressStamp=-1;
 let touchStartPos=null;
 const LONG_PRESS_MS=700;
+let dragModeActive=false;  // explicit drag mode toggled by button
 
 function stampDown(e){
   e.preventDefault();
   const pos=getStampPos(e);
   touchStartPos={x:pos.x,y:pos.y};
 
-  // ── ALWAYS check for existing item first ──
-  // Delete button check
+  // ── Delete button check ──
   if(selectedStamp>=0){
     const s=stampObjects[selectedStamp];
     const dx=pos.x-(s.x+s.w+4),dy=pos.y-(s.y-4);
@@ -1112,36 +1149,42 @@ function stampDown(e){
     }
   }
 
-  // Check if touching an existing stamp — if so, ALWAYS do long-press drag
-  // even if activeStamp is set (existing item takes priority over placing new one)
   const hit=getStampAt(pos);
-  if(hit>=0){
-    longPressStamp=hit;
-    selectedStamp=hit;
-    renderStamps();
-    longPressTimer=setTimeout(()=>{
-      if(!touchStartPos)return;
+
+  // ── DRAG MODE: tap item → immediately start dragging, no long press needed ──
+  if(dragModeActive){
+    if(hit>=0){
+      selectedStamp=hit;
       draggingStamp=true;
-      dragOffX=touchStartPos.x-stampObjects[hit].x;
-      dragOffY=touchStartPos.y-stampObjects[hit].y;
+      dragOffX=pos.x-stampObjects[hit].x;
+      dragOffY=pos.y-stampObjects[hit].y;
       if(stampCanvas)stampCanvas.style.cursor='grabbing';
-      showToast('📦 Drag to reposition');
-    }, LONG_PRESS_MS);
-    return; // Stop here — never place on top of existing item
+    } else {
+      selectedStamp=-1;
+    }
+    renderStamps();
+    return;
   }
 
-  // ── Only place new stamp if tapping EMPTY space ──
+  // ── Existing item tapped outside drag mode — just select it ──
+  if(hit>=0){
+    selectedStamp=hit;
+    renderStamps();
+    return;
+  }
+
+  // ── Place new stamp on empty space ──
   if(activeStamp&&STAMP_DEFS[activeStamp]){
     const def=STAMP_DEFS[activeStamp];
     stampObjects.push({type:activeStamp,x:pos.x-def.w/2,y:pos.y-def.h/2,w:def.w,h:def.h});
     selectedStamp=stampObjects.length-1;
     renderStamps();
-    cancelStamp(); // Auto-exit stamp mode after placing
-    showToast('✅ '+def.label+' placed · long-press to move');
+    cancelStamp();
+    showToast('✅ '+def.label+' placed');
     return;
   }
 
-  // Tapped empty space with no active stamp — deselect
+  // Tapped empty space — deselect
   selectedStamp=-1;
   longPressStamp=-1;
   renderStamps();
