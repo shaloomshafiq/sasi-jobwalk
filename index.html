@@ -69,6 +69,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .badge-orange{background:var(--orange-light);color:var(--orange-dark);}
 .badge-gray{background:var(--gray-100);color:var(--gray-500);}
 .progress-bar{height:3px;background:#E8E8E8;}
+.addr-suggestion:hover,.addr-suggestion:active{background:var(--orange-light);}
+.field{position:relative;}
 .progress-fill{height:100%;background:var(--orange);transition:width 0.3s ease;}
 .divider{height:1px;background:var(--gray-100);margin:14px 0;}
 .info-row{display:flex;align-items:baseline;padding:7px 0;border-bottom:var(--border);gap:8px;}
@@ -88,9 +90,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .sketch-wrap{position:relative;background:#FAFAFA;border:1px solid var(--gray-100);border-radius:4px;margin:4px;}
 .sketch-wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
 #sketchGrid{pointer-events:none;}
-#sketchDraw{cursor:crosshair;touch-action:none;}
+#sketchDraw{touch-action:none;cursor:crosshair;}
+#sketchStamps{touch-action:none;cursor:default;pointer-events:none;}
 .tool-bar{display:flex;gap:6px;flex-wrap:wrap;padding:10px;background:var(--gray-50);border-bottom:var(--border);}
 .tool-btn{padding:6px 10px;border:var(--border);border-radius:6px;font-size:12px;font-weight:600;background:white;cursor:pointer;color:var(--gray-700);display:flex;align-items:center;gap:5px;}
+.stamp-btn{padding:5px 9px;border:1px solid #B0BEC5;border-radius:6px;font-size:11px;font-weight:600;background:white;cursor:pointer;color:#37474F;}
+.stamp-btn.active{background:#FFF3E0;border-color:#FF9800;color:#E65100;}
 .tool-btn.t-active{border-width:2px;}
 .size-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-bottom:var(--border);}
 .size-bar label{font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
@@ -254,7 +259,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
         <input type="hidden" id="f_loss_type" value="">
       </div>
       <div class="field-row">
-        <div class="field"><label>APCD / AQMD?</label><select id="f_apcd"><option value="">— Select —</option><option>Yes</option><option>No</option><option>TBD</option></select></div>
+        <div class="field">
+          <label>APCD / AQMD Notification</label>
+          <select id="f_apcd" oninput="cascade()">
+            <option value="">— Select —</option>
+            <option value="Not Required">Not Required</option>
+            <option value="APCD">APCD</option>
+            <option value="AQMD">AQMD</option>
+            <option value="APCD+AQMD">APCD + AQMD</option>
+            <option value="TBD">TBD</option>
+          </select>
+        </div>
         <div class="field"><label>Date Walked / Signed <span class="req">*</span></label><input type="date" id="f_date_walked"></div>
       </div>
     </div>
@@ -263,11 +278,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
     <div class="section-header"><div class="section-icon">🏠</div><h2>Property Info</h2></div>
     <div class="section-body">
       <div class="field"><label>Job Name <span class="req">*</span></label><input type="text" id="f_job_name" placeholder="e.g. FBS 3966 Camino Lindo Flood" oninput="cascade()"></div>
-      <div class="field"><label>Address <span class="req">*</span></label><input type="text" id="f_address" placeholder="Street address" oninput="cascade()"></div>
+      <div class="field">
+        <label>Address <span class="req">*</span></label>
+        <input type="text" id="f_address"
+          placeholder="Start typing address…"
+          autocomplete="street-address"
+          autocorrect="off" autocapitalize="words" spellcheck="false"
+          inputmode="text"
+          oninput="onAddressInput(this)"
+          onblur="parseAddressBlur(this)">
+        <div id="addr_suggestions" style="display:none;position:absolute;z-index:300;background:white;border:1px solid var(--orange);border-top:none;border-radius:0 0 8px 8px;width:calc(100% - 32px);max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
+      </div>
       <div class="field-row-3">
-        <div class="field"><label>City</label><input type="text" id="f_city" placeholder="San Diego" oninput="cascade()"></div>
-        <div class="field"><label>Zip</label><input type="text" id="f_zip" placeholder="92122" oninput="cascade()"></div>
-        <div class="field"><label>Cross Street</label><input type="text" id="f_cross_street" oninput="cascade()"></div>
+        <div class="field"><label>City</label><input type="text" id="f_city" placeholder="San Diego" autocomplete="address-level2" autocorrect="off" oninput="cascade()"></div>
+        <div class="field"><label>Zip</label><input type="text" id="f_zip" placeholder="92122" autocomplete="postal-code" inputmode="numeric" oninput="cascade()"></div>
+        <div class="field"><label>Cross Street</label><input type="text" id="f_cross_street" autocorrect="off" oninput="cascade()"></div>
       </div>
     </div>
   </div>
@@ -438,9 +463,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
         <button class="btn-sm" style="background:#FFF0EF;color:var(--red);" onclick="clearSketch()">Clear</button>
       </div>
     </div>
+    <!-- DRAW TOOLS -->
+    <div style="padding:6px 10px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);background:var(--gray-50);border-bottom:var(--border);">Draw Lines</div>
     <div class="tool-bar">
-      <button class="tool-btn t-active" id="tb_drywall" onclick="setSketchTool('drywall')" style="color:#E8501A;border-color:#E8501A;">
-        <span style="width:18px;height:3px;background:#E8501A;border-radius:2px;display:inline-block;"></span>Drywall
+      <button class="tool-btn t-active" id="tb_walls" onclick="setSketchTool('walls')" style="color:#1A1A1A;border-color:#1A1A1A;">
+        <span style="width:18px;height:3px;background:#1A1A1A;border-radius:0;display:inline-block;"></span>Walls
+      </button>
+      <button class="tool-btn" id="tb_drywall" onclick="setSketchTool('drywall')" style="color:#E8501A;">
+        <span style="width:18px;height:3px;background:#E8501A;border-radius:2px;display:inline-block;"></span>Drywall ✂
       </button>
       <button class="tool-btn" id="tb_flooring" onclick="setSketchTool('flooring')" style="color:#2E7D32;">
         <span style="width:18px;height:3px;background:#2E7D32;border-radius:2px;display:inline-block;"></span>Flooring
@@ -454,8 +484,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
       <button class="tool-btn" id="tb_containment" onclick="setSketchTool('containment')" style="color:#1565C0;">
         <span style="width:18px;height:3px;background:#1565C0;border-radius:2px;display:inline-block;"></span>Containment
       </button>
-      <button class="tool-btn" id="tb_text" onclick="setSketchTool('text')" style="color:var(--gray-700);">T Text</button>
+      <button class="tool-btn" id="tb_text" onclick="setSketchTool('text')" style="color:var(--gray-700);">T Label</button>
       <button class="tool-btn" id="tb_erase" onclick="setSketchTool('erase')" style="color:var(--red);">✕ Erase</button>
+    </div>
+    <!-- STAMP LIBRARY -->
+    <div style="padding:6px 10px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray-500);background:var(--gray-50);border-bottom:var(--border);">Tap to Place Items</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;background:var(--gray-50);border-bottom:var(--border);">
+      <div style="width:100%;font-size:10px;font-weight:600;color:var(--gray-500);margin-bottom:2px;">🚿 Bathroom</div>
+      <button class="stamp-btn" onclick="setStamp('shower')">Shower</button>
+      <button class="stamp-btn" onclick="setStamp('vanity')">Vanity/Sink</button>
+      <button class="stamp-btn" onclick="setStamp('toilet')">Toilet</button>
+      <button class="stamp-btn" onclick="setStamp('tub')">Tub</button>
+      <button class="stamp-btn" onclick="setStamp('cabinetry')">Cabinetry</button>
+      <div style="width:100%;font-size:10px;font-weight:600;color:var(--gray-500);margin:4px 0 2px;">🍳 Kitchen</div>
+      <button class="stamp-btn" onclick="setStamp('fridge')">R Fridge</button>
+      <button class="stamp-btn" onclick="setStamp('stove')">STV Stove</button>
+      <button class="stamp-btn" onclick="setStamp('sink_k')">SNK Sink</button>
+      <button class="stamp-btn" onclick="setStamp('dishwasher')">DW Dishwasher</button>
+      <button class="stamp-btn" onclick="setStamp('walloven')">WO Wall Oven</button>
+      <button class="stamp-btn" onclick="setStamp('fullheight')">FH Full Height</button>
+      <button class="stamp-btn" onclick="setStamp('uppercabs')">Upper Cabs</button>
+      <div style="width:100%;font-size:10px;font-weight:600;color:var(--gray-500);margin:4px 0 2px;">🧺 Laundry / Utility</div>
+      <button class="stamp-btn" onclick="setStamp('washer')">W Washer</button>
+      <button class="stamp-btn" onclick="setStamp('dryer')">D Dryer</button>
+      <button class="stamp-btn" onclick="setStamp('waterheater')">WH Water Heater</button>
+      <button class="stamp-btn" onclick="setStamp('fau')">FAU Heater/AC</button>
+      <button class="stamp-btn" onclick="setStamp('ceilingfan')">⊗ Ceiling Fan</button>
+    </div>
+    <div id="stampActiveBar" style="display:none;padding:6px 10px;background:#FFF3E0;border-bottom:var(--border);font-size:12px;color:#E65100;font-weight:600;">
+      📍 <span id="stampActiveName"></span> — tap on sketch to place · <button onclick="cancelStamp()" style="background:none;border:none;color:#E65100;text-decoration:underline;cursor:pointer;font-size:12px;">Cancel</button>
     </div>
     <div class="size-bar">
       <label>Width</label>
@@ -464,13 +521,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
       <button class="size-btn" id="sz_thick" onclick="setSketchSize(7,this)"><span class="size-dot" style="width:11px;height:11px;"></span></button>
       <span style="margin-left:auto;font-size:11px;color:var(--gray-500);">Finger or stylus</span>
     </div>
-    <!-- TWO CANVAS STACK: grid underneath, drawing on top -->
+    <!-- THREE CANVAS STACK: grid / freehand draw / interactive stamps -->
     <div class="sketch-wrap" id="sketchWrap">
       <canvas id="sketchGrid"></canvas>
       <canvas id="sketchDraw"></canvas>
+      <canvas id="sketchStamps"></canvas>
     </div>
     <div class="sketch-legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#E8501A;"></div>Drywall</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1A1A1A;border-radius:0;"></div>Walls</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#E8501A;"></div>Drywall ✂</div>
       <div class="legend-item"><div class="legend-dot" style="background:#2E7D32;"></div>Flooring</div>
       <div class="legend-item"><div class="legend-dot" style="background:#6A1B9A;"></div>Ceramic</div>
       <div class="legend-item"><div class="legend-dot" style="background:#0277BD;"></div>Acoustic</div>
@@ -621,8 +680,8 @@ let photos=[];
 let signatureData=null;
 
 // ══ SKETCH — two-layer approach ══
-const TOOL_COLORS={drywall:'#E8501A',flooring:'#2E7D32',ceramic:'#6A1B9A',acoustic:'#0277BD',containment:'#1565C0',text:'#1A1A1A'};
-let sketchTool='drywall',sketchSize=2,sketchDrawing=false;
+const TOOL_COLORS={walls:'#1A1A1A',drywall:'#E8501A',flooring:'#2E7D32',ceramic:'#6A1B9A',acoustic:'#0277BD',containment:'#1565C0',text:'#1A1A1A'};
+let sketchTool='walls',sketchSize=2,sketchDrawing=false;
 let sketchHistory=[];  // stores drawing-layer snapshots only
 let sketchGridCanvas=null,sketchDrawCanvas=null,sketchCtx=null;
 let sketchInited=false;
@@ -671,6 +730,103 @@ function setEstimator(btn,name){
 }
 
 // ══ CASCADE ══
+// ══ ADDRESS AUTOCOMPLETE ══
+// Uses browser native autocomplete + a curated SD area suggestions list
+// Common San Diego area city names for autocomplete
+const SD_CITIES=['San Diego','Chula Vista','El Cajon','Santee','Lakeside',
+  'La Mesa','Spring Valley','Lemon Grove','National City','Coronado',
+  'Poway','Escondido','San Marcos','Vista','Oceanside','Carlsbad',
+  'Encinitas','Solana Beach','Del Mar','Rancho Santa Fe','El Cajon',
+  'Alpine','Jamul','Bonita','Imperial Beach'];
+
+let addrDebounce=null;
+
+function onAddressInput(el){
+  cascade();
+  clearTimeout(addrDebounce);
+  addrDebounce=setTimeout(()=>fetchAddrSuggestions(el.value), 300);
+}
+
+function fetchAddrSuggestions(val){
+  const box=document.getElementById('addr_suggestions');
+  if(!box)return;
+  if(val.length<3){box.style.display='none';return;}
+
+  // Use nominatim (OpenStreetMap) — completely free, no API key
+  const query=encodeURIComponent(val+', San Diego County, CA');
+  fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=us&q='+query, {
+    headers:{'Accept-Language':'en-US','User-Agent':'SASI-JobWalk-App'}
+  })
+  .then(r=>r.json())
+  .then(results=>{
+    if(!results.length){box.style.display='none';return;}
+    box.innerHTML=results.map((r,i)=>{
+      const a=r.address||{};
+      const street=[a.house_number,a.road].filter(Boolean).join(' ');
+      const city=a.city||a.town||a.village||a.suburb||'';
+      const zip=a.postcode||'';
+      const display=r.display_name.split(',').slice(0,3).join(',');
+      return `<div class="addr-suggestion" 
+        data-street="${street}" data-city="${city}" data-zip="${zip}"
+        onclick="selectAddress('${street.replace(/'/g,"\'")}','${city.replace(/'/g,"\'")}','${zip}')"
+        onmousedown="event.preventDefault()"
+        style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;cursor:pointer;line-height:1.4;">
+        <div style="font-weight:600;color:var(--gray-900);">${street||display}</div>
+        <div style="font-size:12px;color:var(--gray-500);">${city}${zip?' · '+zip:''}, CA</div>
+      </div>`;
+    }).join('');
+    box.style.display='block';
+  })
+  .catch(()=>{
+    // Fallback: hide suggestions on error
+    box.style.display='none';
+  });
+}
+
+function selectAddress(street,city,zip){
+  const addrEl=document.getElementById('f_address');
+  const cityEl=document.getElementById('f_city');
+  const zipEl=document.getElementById('f_zip');
+  const box=document.getElementById('addr_suggestions');
+  if(addrEl)addrEl.value=street;
+  if(cityEl)cityEl.value=city||'San Diego';
+  if(zipEl&&zip)zipEl.value=zip;
+  if(box)box.style.display='none';
+  cascade();
+  // Move focus to cross street
+  const cs=document.getElementById('f_cross_street');
+  if(cs)cs.focus();
+}
+
+function parseAddressBlur(el){
+  // When user leaves address field, try to parse city/zip if typed together
+  // e.g. "1234 Main St, San Diego, 92101"
+  const val=el.value;
+  const box=document.getElementById('addr_suggestions');
+  if(box)setTimeout(()=>{box.style.display='none';},200);
+  const parts=val.split(',');
+  if(parts.length>=2){
+    const cityEl=document.getElementById('f_city');
+    const zipEl=document.getElementById('f_zip');
+    if(cityEl&&!cityEl.value.trim()){
+      const possibleCity=parts[1].trim().replace(/\d{5}/,'').trim();
+      if(possibleCity)cityEl.value=possibleCity;
+    }
+    const zipMatch=val.match(/(\d{5})/);
+    if(zipMatch&&zipEl&&!zipEl.value.trim())zipEl.value=zipMatch[1];
+  }
+  cascade();
+}
+
+// Close suggestions when tapping outside
+document.addEventListener('click',e=>{
+  const box=document.getElementById('addr_suggestions');
+  const addr=document.getElementById('f_address');
+  if(box&&addr&&!box.contains(e.target)&&e.target!==addr){
+    box.style.display='none';
+  }
+});
+
 function g(id){return(document.getElementById(id)||{value:''}).value.trim();}
 function setC(id,val){const el=document.getElementById(id);if(el)el.textContent=val||'—';}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d;}
@@ -743,6 +899,246 @@ function addContact(){
 // grid canvas = static, never touched after init
 // draw canvas = all drawing + erase, fully clearable
 // ══════════════════════════════
+// ══════════════════════════════
+// STAMP SYSTEM — draggable objects on stamp canvas
+// ══════════════════════════════
+let activeStamp=null;
+let stampObjects=[];      // [{type,x,y,w,h}]
+let selectedStamp=-1;     // index of selected stamp
+let draggingStamp=false;
+let dragOffX=0,dragOffY=0;
+let stampCanvas=null,stampCtx=null;
+
+// All stamp draw functions — pure canvas drawing
+const STAMP_DEFS={
+  shower:{w:70,h:90,label:'Shower',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.beginPath();ctx.moveTo(x+10,y+10);ctx.lineTo(x+w-10,y+h-10);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+w-10,y+10);ctx.lineTo(x+10,y+h-10);ctx.stroke();
+  }},
+  vanity:{w:90,h:44,label:'Vanity/Sink',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.beginPath();ctx.ellipse(x+w/2,y+h/2,16,10,0,0,Math.PI*2);ctx.stroke();
+  }},
+  toilet:{w:34,h:50,label:'Toilet',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,16);ctx.strokeRect(x,y,w,16);
+    ctx.beginPath();ctx.ellipse(x+w/2,y+16+18,14,18,0,0,Math.PI*2);
+    ctx.fillStyle='#fff';ctx.fill();ctx.stroke();
+  }},
+  tub:{w:100,h:54,label:'Tub',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.beginPath();ctx.ellipse(x+w/2,y+h/2,w/2-10,h/2-8,0,0,Math.PI*2);ctx.stroke();
+  }},
+  cabinetry:{w:90,h:38,label:'Cabinetry',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.beginPath();ctx.moveTo(x+w/2,y);ctx.lineTo(x+w/2,y+h);ctx.stroke();
+  }},
+  fridge:{w:40,h:40,label:'R',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 15px Arial';ctx.textAlign='center';
+    ctx.fillText('R',x+w/2,y+h/2+5);ctx.textAlign='left';
+  }},
+  stove:{w:40,h:40,label:'STV',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 12px Arial';ctx.textAlign='center';
+    ctx.fillText('STV',x+w/2,y+h/2+4);ctx.textAlign='left';
+  }},
+  sink_k:{w:40,h:40,label:'SNK',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 12px Arial';ctx.textAlign='center';
+    ctx.fillText('SNK',x+w/2,y+h/2+4);ctx.textAlign='left';
+  }},
+  dishwasher:{w:40,h:40,label:'DW',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 14px Arial';ctx.textAlign='center';
+    ctx.fillText('DW',x+w/2,y+h/2+5);ctx.textAlign='left';
+  }},
+  walloven:{w:40,h:40,label:'WO',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 14px Arial';ctx.textAlign='center';
+    ctx.fillText('WO',x+w/2,y+h/2+5);ctx.textAlign='left';
+  }},
+  fullheight:{w:40,h:40,label:'FH',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 14px Arial';ctx.textAlign='center';
+    ctx.fillText('FH',x+w/2,y+h/2+5);ctx.textAlign='left';
+  }},
+  uppercabs:{w:70,h:34,label:'Upper Cabs',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='rgba(255,255,255,0.0)';
+    ctx.setLineDash([6,4]);ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
+    ctx.fillStyle='#000';ctx.font='bold 9px Arial';ctx.textAlign='center';
+    ctx.fillText('Upper Cabs',x+w/2,y+h/2+3);ctx.textAlign='left';
+  }},
+  washer:{w:40,h:40,label:'W',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 16px Arial';ctx.textAlign='center';
+    ctx.fillText('W',x+w/2,y+h/2+6);ctx.textAlign='left';
+  }},
+  dryer:{w:40,h:40,label:'D',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 16px Arial';ctx.textAlign='center';
+    ctx.fillText('D',x+w/2,y+h/2+6);ctx.textAlign='left';
+  }},
+  waterheater:{w:42,h:42,label:'WH',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(x+w/2,y+h/2,w/2,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#000';ctx.font='bold 13px Arial';ctx.textAlign='center';
+    ctx.fillText('WH',x+w/2,y+h/2+5);ctx.textAlign='left';
+  }},
+  fau:{w:40,h:40,label:'FAU',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#000';ctx.font='bold 12px Arial';ctx.textAlign='center';
+    ctx.fillText('FAU',x+w/2,y+h/2+4);ctx.textAlign='left';
+  }},
+  ceilingfan:{w:44,h:44,label:'⊗',draw:(ctx,x,y,w,h)=>{
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(x+w/2,y+h/2,w/2,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+10,y+10);ctx.lineTo(x+w-10,y+h-10);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+w-10,y+10);ctx.lineTo(x+10,y+h-10);ctx.stroke();
+    ctx.fillStyle='#000';ctx.font='bold 8px Arial';ctx.textAlign='center';
+    ctx.fillText('Fan',x+w/2,y+h/2+3);ctx.textAlign='left';
+  }}
+};
+
+function setStamp(name){
+  activeStamp=name;
+  setSketchTool('stamp');
+  document.querySelectorAll('.stamp-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.stamp-btn').forEach(b=>{
+    if(b.getAttribute('onclick')===`setStamp('${name}')`)b.classList.add('active');
+  });
+  const bar=document.getElementById('stampActiveBar');
+  const nameEl=document.getElementById('stampActiveName');
+  const def=STAMP_DEFS[name];
+  if(bar&&nameEl){bar.style.display='block';nameEl.textContent=(def?def.label:name);}
+  if(stampCanvas)stampCanvas.style.cursor='copy';
+}
+
+function cancelStamp(){
+  activeStamp=null;
+  selectedStamp=-1;
+  setSketchTool('walls');
+  document.querySelectorAll('.stamp-btn').forEach(b=>b.classList.remove('active'));
+  const bar=document.getElementById('stampActiveBar');
+  if(bar)bar.style.display='none';
+  renderStamps();
+}
+
+function getStampAt(pos){
+  for(let i=stampObjects.length-1;i>=0;i--){
+    const s=stampObjects[i];
+    if(pos.x>=s.x&&pos.x<=s.x+s.w&&pos.y>=s.y&&pos.y<=s.y+s.h)return i;
+  }
+  return -1;
+}
+
+function renderStamps(){
+  if(!stampCtx||!stampCanvas)return;
+  stampCtx.clearRect(0,0,stampCanvas.width,stampCanvas.height);
+  stampObjects.forEach((s,i)=>{
+    const def=STAMP_DEFS[s.type];
+    if(!def)return;
+    stampCtx.save();
+    stampCtx.strokeStyle='#1A1A1A';
+    stampCtx.lineWidth=2;
+    stampCtx.font='bold 12px Arial';
+    def.draw(stampCtx,s.x,s.y,s.w,s.h);
+    // label below
+    stampCtx.fillStyle='#1A1A1A';
+    stampCtx.font='bold 9px Arial';
+    stampCtx.textAlign='center';
+    stampCtx.fillText(def.label,s.x+s.w/2,s.y+s.h+11);
+    stampCtx.textAlign='left';
+    // selection highlight
+    if(i===selectedStamp){
+      stampCtx.strokeStyle='#FF9800';
+      stampCtx.lineWidth=2;
+      stampCtx.setLineDash([4,3]);
+      stampCtx.strokeRect(s.x-4,s.y-4,s.w+8,s.h+8);
+      stampCtx.setLineDash([]);
+      // delete button in top-right
+      stampCtx.fillStyle='#E53935';
+      stampCtx.beginPath();
+      stampCtx.arc(s.x+s.w+4,s.y-4,9,0,Math.PI*2);
+      stampCtx.fill();
+      stampCtx.fillStyle='white';
+      stampCtx.font='bold 12px Arial';
+      stampCtx.textAlign='center';
+      stampCtx.fillText('×',s.x+s.w+4,s.y-4+4);
+      stampCtx.textAlign='left';
+    }
+    stampCtx.restore();
+  });
+}
+
+function getStampPos(e){
+  const r=stampCanvas.getBoundingClientRect();
+  const sx=stampCanvas.width/r.width,sy=stampCanvas.height/r.height;
+  const src=e.touches?e.touches[0]:e;
+  return{x:(src.clientX-r.left)*sx,y:(src.clientY-r.top)*sy};
+}
+
+function attachStampEvents(){
+  stampCanvas.addEventListener('mousedown',stampDown,{passive:false});
+  stampCanvas.addEventListener('mousemove',stampMove,{passive:false});
+  stampCanvas.addEventListener('mouseup',stampUp,{passive:false});
+  stampCanvas.addEventListener('touchstart',stampDown,{passive:false});
+  stampCanvas.addEventListener('touchmove',stampMove,{passive:false});
+  stampCanvas.addEventListener('touchend',stampUp,{passive:false});
+}
+
+function stampDown(e){
+  e.preventDefault();
+  const pos=getStampPos(e);
+  // Check if tapping delete button on selected stamp
+  if(selectedStamp>=0){
+    const s=stampObjects[selectedStamp];
+    const dx=pos.x-(s.x+s.w+4),dy=pos.y-(s.y-4);
+    if(Math.sqrt(dx*dx+dy*dy)<12){
+      stampObjects.splice(selectedStamp,1);
+      selectedStamp=-1;
+      renderStamps();
+      showToast('Item deleted');
+      return;
+    }
+  }
+  // Placing a new stamp
+  if(activeStamp&&STAMP_DEFS[activeStamp]){
+    const def=STAMP_DEFS[activeStamp];
+    stampObjects.push({type:activeStamp,x:pos.x-def.w/2,y:pos.y-def.h/2,w:def.w,h:def.h});
+    selectedStamp=stampObjects.length-1;
+    renderStamps();
+    return;
+  }
+  // Check if tapping an existing stamp to select/drag
+  const hit=getStampAt(pos);
+  if(hit>=0){
+    selectedStamp=hit;
+    draggingStamp=true;
+    dragOffX=pos.x-stampObjects[hit].x;
+    dragOffY=pos.y-stampObjects[hit].y;
+    stampCanvas.style.cursor='grabbing';
+  } else {
+    selectedStamp=-1;
+  }
+  renderStamps();
+}
+
+function stampMove(e){
+  e.preventDefault();
+  if(!draggingStamp||selectedStamp<0)return;
+  const pos=getStampPos(e);
+  stampObjects[selectedStamp].x=pos.x-dragOffX;
+  stampObjects[selectedStamp].y=pos.y-dragOffY;
+  renderStamps();
+}
+
+function stampUp(e){
+  e.preventDefault();
+  draggingStamp=false;
+  if(stampCanvas)stampCanvas.style.cursor=activeStamp?'copy':'default';
+}
+
 function initSketch(){
   // Allow reinit if canvas missing or zero-size
   if(sketchInited&&sketchDrawCanvas&&sketchDrawCanvas.width>0)return;
@@ -750,25 +1146,30 @@ function initSketch(){
   const wrap=document.getElementById('sketchWrap');
   sketchGridCanvas=document.getElementById('sketchGrid');
   sketchDrawCanvas=document.getElementById('sketchDraw');
+  stampCanvas=document.getElementById('sketchStamps');
   const W=wrap.clientWidth-2;
   const H=Math.round(W*1.25);
-  [sketchGridCanvas,sketchDrawCanvas].forEach(c=>{c.width=W;c.height=H;});
+  [sketchGridCanvas,sketchDrawCanvas,stampCanvas].forEach(c=>{c.width=W;c.height=H;});
   wrap.style.height=H+'px';
-  // Draw grid on grid canvas once
+  // Grid layer — draw once
   const gc=sketchGridCanvas.getContext('2d');
   gc.fillStyle='#FAFAFA';gc.fillRect(0,0,W,H);
   gc.strokeStyle='#E0E0E0';gc.lineWidth=0.5;
   const step=Math.round(W/30);
   for(let x=0;x<=W;x+=step){gc.beginPath();gc.moveTo(x,0);gc.lineTo(x,H);gc.stroke();}
   for(let y=0;y<=H;y+=step){gc.beginPath();gc.moveTo(0,y);gc.lineTo(W,y);gc.stroke();}
-  // Draw canvas is transparent by default — good
+  // Draw layer
   sketchCtx=sketchDrawCanvas.getContext('2d');
-  // Restore from history if exists
   if(sketchHistory.length>0){
     const img=new Image();img.onload=()=>sketchCtx.drawImage(img,0,0);
     img.src=sketchHistory[sketchHistory.length-1];
   }
+  // Stamp layer
+  stampCtx=stampCanvas.getContext('2d');
+  renderStamps();
+  // Events: draw canvas handles freehand, stamp canvas handles stamps/selection
   attachSketchEvents();
+  attachStampEvents();
 }
 
 function getSketchPos(e){
@@ -853,6 +1254,19 @@ function clearSketch(){
 
 function setSketchTool(t){
   sketchTool=t;
+  // When using draw tools, draw canvas is on top; when stamp mode, stamp canvas is on top
+  if(t==='stamp'){
+    if(sketchDrawCanvas)sketchDrawCanvas.style.pointerEvents='none';
+    if(stampCanvas)stampCanvas.style.pointerEvents='auto';
+  } else {
+    if(sketchDrawCanvas)sketchDrawCanvas.style.pointerEvents='auto';
+    if(stampCanvas)stampCanvas.style.pointerEvents='none';
+    // Clear stamp state
+    activeStamp=null;
+    document.querySelectorAll('.stamp-btn').forEach(b=>b.classList.remove('active'));
+    const bar=document.getElementById('stampActiveBar');
+    if(bar)bar.style.display='none';
+  }
   document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('t-active'));
   const tb=document.getElementById('tb_'+t);
   if(tb){tb.classList.add('t-active');tb.style.borderWidth='2px';}
@@ -1498,6 +1912,7 @@ function emailJobDox(){
 function saveProgress(){
   const data={v:3,savedAt:new Date().toISOString(),estimateType:state.estimateType,lossType:state.lossType,estimator:state.estimator,fields:{},sketchSnap:sketchHistory.length?sketchHistory[sketchHistory.length-1]:null,signatureData};
   document.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{if(el.type==='file')return;data.fields[el.id]=el.type==='checkbox'?el.checked:el.value;});
+  data.stampObjects=stampObjects;
   try{
     localStorage.setItem('sasi_jw3',JSON.stringify(data));
     const photoData=photos.map(p=>({room:p.room,note:p.note,id:p.id,markup:p.markup,dataUrl:p.dataUrl}));
@@ -1515,6 +1930,7 @@ function loadProgress(){
     if(d.estimateType)state.estimateType=d.estimateType;
     if(d.lossType)state.lossType=d.lossType;
     if(d.sketchSnap)sketchHistory=[d.sketchSnap];
+    if(d.stampObjects)stampObjects=d.stampObjects;
     if(d.signatureData&&d.signatureData!=='null'){
       signatureData=d.signatureData;
       document.getElementById('sigAppliedBanner').style.display='flex';
