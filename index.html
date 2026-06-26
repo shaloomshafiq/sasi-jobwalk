@@ -213,7 +213,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
     <div><div class="logo-text">SASI Job Walk</div><div class="logo-sub">Superior Abatement Services</div></div>
   </div>
   <div class="header-actions">
-    <button class="btn-icon" onclick="saveProgress()" title="Save">💾<span class="btn-label">Save</span></button>
+    <button class="btn-icon" onclick="openJobsPanel()" title="Jobs">📁<span class="btn-label">Jobs</span></button>
     <button class="btn-icon" onclick="exportPDF()" title="Export PDF">📤<span class="btn-label">Export</span></button>
     <button class="btn-icon" onclick="openDriveModal()" title="Drive">☁️<span class="btn-label">Drive</span></button>
     <button class="btn-icon" onclick="showJobSummary()" title="Summary">📋<span class="btn-label">Review</span></button>
@@ -702,7 +702,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 <!-- BOTTOM BAR -->
 <div class="summary-bar">
   <div class="summary-info">
-    <strong id="sb_job_name">New Job Walk</strong>
+    <strong id="sb_job_name" onclick="openJobsPanel()" style="cursor:pointer;" title="Tap to open jobs">New Job Walk</strong>
     <span id="sb_status">Fill in Job Info to begin</span>
   </div>
   <button class="btn-secondary" onclick="prevPage()" id="btnPrev" style="display:none">← Back</button>
@@ -2117,11 +2117,44 @@ function exportPDF(){
 
   ${page1}${page2}${page3}${page4}${page5}${page6}${page7}${page8}${page9}
   
+<!-- JOBS PANEL -->
+<div id="jobsPanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:700;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:var(--radius);width:100%;max-width:440px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="background:var(--orange);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <span style="color:white;font-size:15px;font-weight:700;">📁 Saved Jobs</span>
+      <button onclick="closeJobsPanel()" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:6px;width:28px;height:28px;font-size:16px;cursor:pointer;">×</button>
+    </div>
+    <div style="padding:12px 16px;border-bottom:var(--border);display:flex;gap:8px;flex-shrink:0;">
+      <button onclick="saveProgress()" style="flex:1;padding:10px;background:var(--orange);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">💾 Save Current Job</button>
+      <button onclick="saveAsNew()" style="flex:1;padding:10px;background:var(--gray-100);color:var(--gray-700);border:var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">➕ Save as New</button>
+    </div>
+    <div style="padding:10px 16px;border-bottom:var(--border);flex-shrink:0;">
+      <button onclick="newJob()" style="width:100%;padding:10px;background:white;border:2px dashed var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-500);cursor:pointer;font-weight:600;">✦ Start New Job Walk</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.4px;padding:10px 16px 4px;flex-shrink:0;">Saved on this device</div>
+    <div id="savedJobsList" style="overflow-y:auto;flex:1;border-top:var(--border);">
+      <div style="padding:20px;text-align:center;color:var(--gray-300);font-size:13px;">No saved jobs yet</div>
+    </div>
+    <div style="padding:10px 16px;border-top:var(--border);flex-shrink:0;">
+      <input type="file" id="importJobInput2" accept=".json" style="display:none" onchange="importJobFromFile(event)">
+      <button onclick="document.getElementById('importJobInput2').click()" style="width:100%;padding:9px;background:white;border:1.5px dashed var(--gray-300);border-radius:8px;font-size:12px;color:var(--gray-500);cursor:pointer;text-align:left;">📥 Import job file from another estimator</button>
+      <div style="margin-top:6px;background:#F0F7FF;border:1px solid #B3D4F5;border-radius:6px;padding:8px 10px;font-size:11px;color:#1A5C9A;line-height:1.6;">
+        <strong>How to receive a job file:</strong><br>
+        1. Ask the other estimator to tap 📁 Jobs → 📤 Export File<br>
+        2. They send it via AirDrop, WhatsApp, or Email<br>
+        3. When you receive it → tap the file → tap <strong>Save to Files</strong><br>
+        4. Then tap 📥 above → find it in Files → tap to load
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- DRIVE MODAL -->
 <div id="driveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:700;align-items:center;justify-content:center;padding:20px;">
   <div style="background:white;border-radius:var(--radius);width:100%;max-width:440px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     <div style="background:var(--orange);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="color:white;font-size:15px;font-weight:700;">☁️ Google Drive — Job Files</span>
+      <span style="color:white;font-size:15px;font-weight:700;">☁️ SASI Shared Drive</span>
       <button onclick="closeDriveModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:6px;width:28px;height:28px;font-size:16px;cursor:pointer;">×</button>
     </div>
     <div style="padding:16px;">
@@ -2140,10 +2173,14 @@ function exportPDF(){
           <div><div id="driveUserName" style="font-size:13px;font-weight:600;"></div><div id="driveUserEmail" style="font-size:11px;color:var(--gray-500);"></div></div>
           <button onclick="signOutGoogle()" style="margin-left:auto;background:none;border:1px solid var(--gray-300);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--gray-500);cursor:pointer;">Sign out</button>
         </div>
+        <!-- Shared folder notice -->
+        <div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:#2E7D32;line-height:1.5;">
+          📂 Saving to <strong>SASI shared folder</strong> — all estimators save here and you can see all jobs
+        </div>
         <!-- Action buttons -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
           <button onclick="saveToDrive()" style="padding:12px;background:var(--orange);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">☁️ Save to Drive</button>
-          <button onclick="exportJobFile()" style="padding:12px;background:var(--gray-100);color:var(--gray-700);border:var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📤 Export File</button>
+          <button onclick="exportJobFile()" title="Download .json to share via AirDrop, WhatsApp or Email" style="padding:12px;background:var(--gray-100);color:var(--gray-700);border:var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📤 Export & Handoff</button>
         </div>
         <!-- Job list -->
         <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Your Saved Jobs</div>
@@ -2155,6 +2192,9 @@ function exportPDF(){
           <label style="display:block;font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:6px;">IMPORT JOB FILE (from another estimator)</label>
           <input type="file" id="importJobInput" accept=".json" style="display:none" onchange="importJobFile(event)">
           <button onclick="document.getElementById('importJobInput').click()" style="width:100%;padding:10px;background:white;border:2px dashed var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-500);cursor:pointer;">📥 Import .json job file</button>
+          <div style="margin-top:8px;background:#F0F7FF;border:1px solid #B3D4F5;border-radius:6px;padding:8px 10px;font-size:11px;color:#1A5C9A;line-height:1.6;">
+            <strong>Receiving a job file?</strong> Save it to your Files app first, then tap Import above and find it in Files.
+          </div>
         </div>
       </div>
     </div>
@@ -2211,38 +2251,171 @@ function exportAndEmail(){
 }
 
 // ══ SAVE / LOAD ══
-function saveProgress(){
-  const data={v:3,savedAt:new Date().toISOString(),estimateType:state.estimateType,lossType:state.lossType,estimator:state.estimator,fields:{},sketchSnap:sketchHistory.length?sketchHistory[sketchHistory.length-1]:null,signatureData};
-  document.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{if(el.type==='file')return;data.fields[el.id]=el.type==='checkbox'?el.checked:el.value;});
-  data.stampObjects=stampObjects;
-  try{
-    localStorage.setItem('sasi_jw3',JSON.stringify(data));
-    const photoData=photos.map(p=>({room:p.room,note:p.note,id:p.id,markup:p.markup,dataUrl:p.dataUrl}));
-    localStorage.setItem('sasi_jw3_photos',JSON.stringify(photoData));
-    showToast('✅ Saved');
-  }catch(e){showToast('⚠️ Storage full — reduce photo count');}
+// ══ MULTI-JOB NAMED SAVE SYSTEM ══
+const JOB_INDEX_KEY='sasi_job_index'; // stores list of saved job keys
+let currentJobKey=null; // which job is currently loaded
+
+function getJobIndex(){
+  try{return JSON.parse(localStorage.getItem(JOB_INDEX_KEY)||'[]');}catch(e){return[];}
 }
 
+function saveJobIndex(idx){
+  localStorage.setItem(JOB_INDEX_KEY,JSON.stringify(idx));
+}
+
+function buildJobData(){
+  const data={v:4,savedAt:new Date().toISOString(),estimateType:state.estimateType,
+    lossType:state.lossType,estimator:state.estimator,signatureData,stampObjects,
+    sketchSnap:sketchHistory.length?sketchHistory[sketchHistory.length-1]:null,
+    photos:photos.map(p=>({room:p.room,note:p.note,id:p.id,markup:p.markup,dataUrl:p.dataUrl})),
+    fields:{}};
+  document.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{
+    if(el.type==='file')return;
+    data.fields[el.id]=el.type==='checkbox'?el.checked:el.value;
+  });
+  return data;
+}
+
+function saveProgress(){
+  const jobName=g('f_job_name')||'';
+  if(!jobName){
+    showToast('⚠️ Enter a Job Name first to save');
+    // Focus job name field
+    const jn=document.getElementById('f_job_name');
+    if(jn){jn.focus();jn.scrollIntoView({behavior:'smooth',block:'center'});}
+    return;
+  }
+  // Use existing key if loaded, otherwise create new
+  const key=currentJobKey||'sasi_job_'+Date.now();
+  currentJobKey=key;
+  const data=buildJobData();
+  data.jobName=jobName;
+  try{
+    localStorage.setItem(key,JSON.stringify(data));
+    // Update index
+    let idx=getJobIndex();
+    const existing=idx.findIndex(j=>j.key===key);
+    const entry={key,jobName,savedAt:data.savedAt,estimator:state.estimator,lossType:state.lossType};
+    if(existing>=0)idx[existing]=entry;else idx.unshift(entry);
+    saveJobIndex(idx);
+    showToast('✅ Saved: '+jobName);
+    updateSavedJobsPanel();
+  }catch(e){showToast('⚠️ Storage full — reduce photos');}
+}
+
+function saveAsNew(){
+  const jobName=g('f_job_name')||'';
+  if(!jobName){showToast('⚠️ Enter a Job Name first');return;}
+  currentJobKey='sasi_job_'+Date.now();
+  saveProgress();
+}
+
+function loadJobByKey(key){
+  try{
+    const s=localStorage.getItem(key);if(!s)return;
+    const d=JSON.parse(s);
+    applyJobData(d);
+    currentJobKey=key;
+    closeJobsPanel();
+    showToast('✅ Loaded: '+(d.jobName||'Job'));
+  }catch(e){showToast('❌ Could not load job');}
+}
+
+function deleteJobByKey(key,jobName){
+  if(!confirm('Delete saved job "'+jobName+'"?'))return;
+  localStorage.removeItem(key);
+  let idx=getJobIndex();
+  idx=idx.filter(j=>j.key!==key);
+  saveJobIndex(idx);
+  if(currentJobKey===key)currentJobKey=null;
+  updateSavedJobsPanel();
+  showToast('Deleted: '+jobName);
+}
+
+function newJob(){
+  if(!confirm('Start a new job? Unsaved changes will be lost.'))return;
+  currentJobKey=null;
+  // Reset all fields
+  document.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{
+    if(el.type==='file')return;
+    if(el.type==='checkbox')el.checked=false;
+    else el.value='';
+  });
+  // Reset state
+  state.estimator='';state.estimateType='Asbestos';state.lossType='';
+  signatureData=null;photos=[];stampObjects=[];sketchHistory=[];
+  selectedStamp=-1;activeStamp=null;
+  // Reset UI
+  document.querySelectorAll('.est-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.loss-btn').forEach(b=>b.classList.remove('active'));
+  const asbestosBtn=document.querySelector('.loss-btn');
+  if(asbestosBtn)asbestosBtn.classList.add('active');
+  document.getElementById('f_date_walked').value=new Date().toISOString().split('T')[0];
+  document.getElementById('sigAppliedBanner').style.display='none';
+  document.getElementById('sigPreviewWrap').style.display='none';
+  document.getElementById('moldAlert').classList.remove('show');
+  renderPhotos();
+  if(stampCtx&&stampCanvas)stampCtx.clearRect(0,0,stampCanvas.width,stampCanvas.height);
+  if(sketchCtx&&sketchDrawCanvas)sketchCtx.clearRect(0,0,sketchDrawCanvas.width,sketchDrawCanvas.height);
+  sketchInited=false;
+  cascade();updateMaterials();calcACMTotal();
+  switchPage(0);
+  closeJobsPanel();
+  showToast('✅ New job started');
+}
+
+function updateSavedJobsPanel(){
+  const panel=document.getElementById('savedJobsList');
+  if(!panel)return;
+  const idx=getJobIndex();
+  if(!idx.length){
+    panel.innerHTML='<div style="padding:20px;text-align:center;color:var(--gray-300);font-size:13px;">No saved jobs yet</div>';
+    return;
+  }
+  panel.innerHTML=idx.map(j=>{
+    const d=new Date(j.savedAt);
+    const dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const isCurrent=j.key===currentJobKey;
+    return `<div style="padding:10px 12px;border-bottom:var(--border);display:flex;align-items:center;gap:8px;background:${isCurrent?'var(--orange-light)':'white'};">
+      <div style="flex:1;cursor:pointer;" onclick="loadJobByKey('${j.key}')">
+        <div style="font-size:13px;font-weight:600;color:var(--gray-900);">${j.jobName}${isCurrent?' <span style=\"font-size:10px;color:var(--orange);\">● Current</span>':''}</div>
+        <div style="font-size:11px;color:var(--gray-500);">${dateStr}${j.estimator?' · '+j.estimator:''}${j.lossType?' · '+j.lossType:''}</div>
+      </div>
+      <button onclick="event.stopPropagation();deleteJobByKey('${j.key}','${j.jobName.replace(/'/g,"\'")}')" style="background:none;border:none;color:#E53935;font-size:16px;cursor:pointer;padding:4px;">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function openJobsPanel(){
+  document.getElementById('jobsPanel').style.display='flex';
+  updateSavedJobsPanel();
+}
+function closeJobsPanel(){
+  document.getElementById('jobsPanel').style.display='none';
+}
+
+// Legacy load on first open — migrate old saves
 function loadProgress(){
+  // Try to restore last active job
+  const idx=getJobIndex();
+  if(idx.length>0){
+    try{
+      const last=idx[0];
+      const s=localStorage.getItem(last.key);
+      if(s){
+        const d=JSON.parse(s);
+        applyJobData(d);
+        currentJobKey=last.key;
+        showToast('✅ Restored: '+last.jobName);
+        return;
+      }
+    }catch(e){}
+  }
+  // Fallback: try legacy key
   try{
     const s=localStorage.getItem('sasi_jw3');if(!s)return;
     const d=JSON.parse(s);
-    Object.entries(d.fields||{}).forEach(([id,v])=>{const el=document.getElementById(id);if(!el||el.type==='file')return;el.type==='checkbox'?el.checked=v:el.value=v;});
-    if(d.estimator){document.querySelectorAll('.est-btn').forEach(b=>{if(b.childNodes[0].textContent===d.estimator)b.classList.add('active');});state.estimator=d.estimator;}
-    if(d.estimateType)state.estimateType=d.estimateType;
-    if(d.lossType)state.lossType=d.lossType;
-    if(d.sketchSnap)sketchHistory=[d.sketchSnap];
-    if(d.stampObjects)stampObjects=d.stampObjects;
-    if(d.signatureData&&d.signatureData!=='null'){
-      signatureData=d.signatureData;
-      document.getElementById('sigAppliedBanner').style.display='flex';
-      document.getElementById('sigPreviewWrap').style.display='block';
-      document.getElementById('sigPreview').src=signatureData;
-    }
-    const ps=localStorage.getItem('sasi_jw3_photos');
-    if(ps){photos=JSON.parse(ps);renderPhotos();}
-    if(document.getElementById('f_mold_found').checked)document.getElementById('moldAlert').classList.add('show');
-    cascade();showToast('✅ Session restored');
+    applyJobData(d);
   }catch(e){console.warn('Load error',e);}
 }
 
@@ -2342,27 +2515,11 @@ function closeDriveModal(){
   document.getElementById('driveModal').style.display='none';
 }
 
-// Get or create SASI Job Walk folder
+// Always use the designated SASI shared folder
+const SASI_SHARED_FOLDER_ID='109x5Jf8z9AmLTA1TO_2ETi-eFaXkH--t';
 async function getOrCreateFolder(){
-  if(gdriveFolderId)return gdriveFolderId;
-  const headers={'Authorization':'Bearer '+gAccessToken,'Content-Type':'application/json'};
-  // Search for existing folder
-  const search=await fetch(
-    'https://www.googleapis.com/drive/v3/files?q=name%3D%22'+encodeURIComponent(GDRIVE_FOLDER_NAME)+'%22+and+mimeType%3D%22application%2Fvnd.google-apps.folder%22+and+trashed%3Dfalse&fields=files(id,name)',
-    {headers:{Authorization:'Bearer '+gAccessToken}}
-  );
-  const res=await search.json();
-  if(res.files&&res.files.length>0){
-    gdriveFolderId=res.files[0].id;
-    return gdriveFolderId;
-  }
-  // Create folder
-  const create=await fetch('https://www.googleapis.com/drive/v3/files',{
-    method:'POST',headers,
-    body:JSON.stringify({name:GDRIVE_FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})
-  });
-  const folder=await create.json();
-  gdriveFolderId=folder.id;
+  // Always return the shared company folder — no searching or creating needed
+  gdriveFolderId=SASI_SHARED_FOLDER_ID;
   return gdriveFolderId;
 }
 
@@ -2393,7 +2550,8 @@ async function saveToDrive(){
     const folderId=await getOrCreateFolder();
     const jobData=buildJobData();
     const jobName=g('f_job_name')||'Job Walk';
-    const fileName=jobName.replace(/[^a-zA-Z0-9 _-]/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.json';
+    const estimatorTag=state.estimator?'_'+state.estimator:'';
+    const fileName=jobName.replace(/[^a-zA-Z0-9 _-]/g,'_')+estimatorTag+'_'+new Date().toISOString().split('T')[0]+'.json';
     const fileContent=JSON.stringify(jobData,null,2);
     // Check if file already exists (update vs create)
     const search=await fetch(
@@ -2536,6 +2694,24 @@ function exportJobFile(){
 }
 
 // ── Import job from .json file ──
+function importJobFromFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.fields){showToast('❌ Invalid job file');return;}
+      if(!confirm('Import "'+file.name+'"? This will open it as a new job.'))return;
+      currentJobKey=null; // treat as new
+      applyJobData(data);
+      closeJobsPanel();
+      showToast('✅ Imported: '+file.name);
+    }catch(e){showToast('❌ Could not read file');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
 function importJobFile(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
@@ -2554,11 +2730,44 @@ function importJobFile(e){
 }
 </script>
 
+<!-- JOBS PANEL -->
+<div id="jobsPanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:700;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:var(--radius);width:100%;max-width:440px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="background:var(--orange);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <span style="color:white;font-size:15px;font-weight:700;">📁 Saved Jobs</span>
+      <button onclick="closeJobsPanel()" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:6px;width:28px;height:28px;font-size:16px;cursor:pointer;">×</button>
+    </div>
+    <div style="padding:12px 16px;border-bottom:var(--border);display:flex;gap:8px;flex-shrink:0;">
+      <button onclick="saveProgress()" style="flex:1;padding:10px;background:var(--orange);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">💾 Save Current Job</button>
+      <button onclick="saveAsNew()" style="flex:1;padding:10px;background:var(--gray-100);color:var(--gray-700);border:var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">➕ Save as New</button>
+    </div>
+    <div style="padding:10px 16px;border-bottom:var(--border);flex-shrink:0;">
+      <button onclick="newJob()" style="width:100%;padding:10px;background:white;border:2px dashed var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-500);cursor:pointer;font-weight:600;">✦ Start New Job Walk</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.4px;padding:10px 16px 4px;flex-shrink:0;">Saved on this device</div>
+    <div id="savedJobsList" style="overflow-y:auto;flex:1;border-top:var(--border);">
+      <div style="padding:20px;text-align:center;color:var(--gray-300);font-size:13px;">No saved jobs yet</div>
+    </div>
+    <div style="padding:10px 16px;border-top:var(--border);flex-shrink:0;">
+      <input type="file" id="importJobInput2" accept=".json" style="display:none" onchange="importJobFromFile(event)">
+      <button onclick="document.getElementById('importJobInput2').click()" style="width:100%;padding:9px;background:white;border:1.5px dashed var(--gray-300);border-radius:8px;font-size:12px;color:var(--gray-500);cursor:pointer;text-align:left;">📥 Import job file from another estimator</button>
+      <div style="margin-top:6px;background:#F0F7FF;border:1px solid #B3D4F5;border-radius:6px;padding:8px 10px;font-size:11px;color:#1A5C9A;line-height:1.6;">
+        <strong>How to receive a job file:</strong><br>
+        1. Ask the other estimator to tap 📁 Jobs → 📤 Export File<br>
+        2. They send it via AirDrop, WhatsApp, or Email<br>
+        3. When you receive it → tap the file → tap <strong>Save to Files</strong><br>
+        4. Then tap 📥 above → find it in Files → tap to load
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- DRIVE MODAL -->
 <div id="driveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:700;align-items:center;justify-content:center;padding:20px;">
   <div style="background:white;border-radius:var(--radius);width:100%;max-width:440px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     <div style="background:var(--orange);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="color:white;font-size:15px;font-weight:700;">☁️ Google Drive — Job Files</span>
+      <span style="color:white;font-size:15px;font-weight:700;">☁️ SASI Shared Drive</span>
       <button onclick="closeDriveModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:6px;width:28px;height:28px;font-size:16px;cursor:pointer;">×</button>
     </div>
     <div style="padding:16px;">
@@ -2577,10 +2786,14 @@ function importJobFile(e){
           <div><div id="driveUserName" style="font-size:13px;font-weight:600;"></div><div id="driveUserEmail" style="font-size:11px;color:var(--gray-500);"></div></div>
           <button onclick="signOutGoogle()" style="margin-left:auto;background:none;border:1px solid var(--gray-300);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--gray-500);cursor:pointer;">Sign out</button>
         </div>
+        <!-- Shared folder notice -->
+        <div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:#2E7D32;line-height:1.5;">
+          📂 Saving to <strong>SASI shared folder</strong> — all estimators save here and you can see all jobs
+        </div>
         <!-- Action buttons -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
           <button onclick="saveToDrive()" style="padding:12px;background:var(--orange);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">☁️ Save to Drive</button>
-          <button onclick="exportJobFile()" style="padding:12px;background:var(--gray-100);color:var(--gray-700);border:var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📤 Export File</button>
+          <button onclick="exportJobFile()" title="Download .json to share via AirDrop, WhatsApp or Email" style="padding:12px;background:var(--gray-100);color:var(--gray-700);border:var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📤 Export & Handoff</button>
         </div>
         <!-- Job list -->
         <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Your Saved Jobs</div>
@@ -2592,6 +2805,9 @@ function importJobFile(e){
           <label style="display:block;font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:6px;">IMPORT JOB FILE (from another estimator)</label>
           <input type="file" id="importJobInput" accept=".json" style="display:none" onchange="importJobFile(event)">
           <button onclick="document.getElementById('importJobInput').click()" style="width:100%;padding:10px;background:white;border:2px dashed var(--gray-300);border-radius:8px;font-size:13px;color:var(--gray-500);cursor:pointer;">📥 Import .json job file</button>
+          <div style="margin-top:8px;background:#F0F7FF;border:1px solid #B3D4F5;border-radius:6px;padding:8px 10px;font-size:11px;color:#1A5C9A;line-height:1.6;">
+            <strong>Receiving a job file?</strong> Save it to your Files app first, then tap Import above and find it in Files.
+          </div>
         </div>
       </div>
     </div>
