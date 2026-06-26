@@ -512,7 +512,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
       <button class="stamp-btn" onclick="setStamp('ceilingfan')">⊗ Ceiling Fan</button>
     </div>
     <div id="stampActiveBar" style="display:none;padding:6px 10px;background:#FFF3E0;border-bottom:var(--border);font-size:12px;color:#E65100;font-weight:600;">
-      📍 <span id="stampActiveName"></span> — tap on sketch to place · <button onclick="cancelStamp()" style="background:none;border:none;color:#E65100;text-decoration:underline;cursor:pointer;font-size:12px;">Cancel</button>
+      📍 <span id="stampActiveName"></span> — tap sketch to place · after placing, long-press item to move · <button onclick="cancelStamp()" style="background:none;border:none;color:#E65100;text-decoration:underline;cursor:pointer;font-size:12px;">Cancel</button>
     </div>
     <div class="size-bar">
       <label>Width</label>
@@ -1087,14 +1087,22 @@ function attachStampEvents(){
   stampCanvas.addEventListener('touchend',stampUp,{passive:false});
 }
 
+// Long-press state
+let longPressTimer=null;
+let longPressStamp=-1;
+let touchStartPos=null;
+const LONG_PRESS_MS=700;
+
 function stampDown(e){
   e.preventDefault();
   const pos=getStampPos(e);
-  // Check if tapping delete button on selected stamp
+  touchStartPos={x:pos.x,y:pos.y};
+
+  // ── Check delete button on selected stamp ──
   if(selectedStamp>=0){
     const s=stampObjects[selectedStamp];
     const dx=pos.x-(s.x+s.w+4),dy=pos.y-(s.y-4);
-    if(Math.sqrt(dx*dx+dy*dy)<12){
+    if(Math.sqrt(dx*dx+dy*dy)<14){
       stampObjects.splice(selectedStamp,1);
       selectedStamp=-1;
       renderStamps();
@@ -1102,32 +1110,57 @@ function stampDown(e){
       return;
     }
   }
-  // Placing a new stamp
+
+  // ── Place a new stamp — then AUTO EXIT stamp mode ──
   if(activeStamp&&STAMP_DEFS[activeStamp]){
     const def=STAMP_DEFS[activeStamp];
     stampObjects.push({type:activeStamp,x:pos.x-def.w/2,y:pos.y-def.h/2,w:def.w,h:def.h});
     selectedStamp=stampObjects.length-1;
     renderStamps();
+    // Auto-exit stamp mode after placing — stops double-placing
+    cancelStamp();
+    showToast('✅ '+def.label+' placed — long-press to move');
     return;
   }
-  // Check if tapping an existing stamp to select/drag
+
+  // ── Long-press to drag existing stamp ──
   const hit=getStampAt(pos);
   if(hit>=0){
+    // Start long-press timer
+    longPressStamp=hit;
     selectedStamp=hit;
-    draggingStamp=true;
-    dragOffX=pos.x-stampObjects[hit].x;
-    dragOffY=pos.y-stampObjects[hit].y;
-    stampCanvas.style.cursor='grabbing';
+    renderStamps();
+    longPressTimer=setTimeout(()=>{
+      // Long press confirmed — start drag
+      draggingStamp=true;
+      dragOffX=touchStartPos.x-stampObjects[hit].x;
+      dragOffY=touchStartPos.y-stampObjects[hit].y;
+      stampCanvas.style.cursor='grabbing';
+      // Visual feedback — pulse the item
+      showToast('📦 Drag to move');
+    }, LONG_PRESS_MS);
   } else {
+    // Tapped empty space — deselect
     selectedStamp=-1;
+    longPressStamp=-1;
+    renderStamps();
   }
-  renderStamps();
 }
 
 function stampMove(e){
   e.preventDefault();
-  if(!draggingStamp||selectedStamp<0)return;
   const pos=getStampPos(e);
+
+  // If moved too far before long-press fires, cancel it
+  if(longPressTimer&&touchStartPos){
+    const dx=pos.x-touchStartPos.x,dy=pos.y-touchStartPos.y;
+    if(Math.sqrt(dx*dx+dy*dy)>8){
+      clearTimeout(longPressTimer);
+      longPressTimer=null;
+    }
+  }
+
+  if(!draggingStamp||selectedStamp<0)return;
   stampObjects[selectedStamp].x=pos.x-dragOffX;
   stampObjects[selectedStamp].y=pos.y-dragOffY;
   renderStamps();
@@ -1135,8 +1168,12 @@ function stampMove(e){
 
 function stampUp(e){
   e.preventDefault();
+  clearTimeout(longPressTimer);
+  longPressTimer=null;
+  longPressStamp=-1;
+  touchStartPos=null;
   draggingStamp=false;
-  if(stampCanvas)stampCanvas.style.cursor=activeStamp?'copy':'default';
+  if(stampCanvas)stampCanvas.style.cursor='default';
 }
 
 function initSketch(){
@@ -1241,14 +1278,33 @@ function undoSketch(){
 }
 
 function clearSketch(){
-  if(!confirm('Clear the sketch?'))return;
+  if(!confirm('Clear entire sketch including all placed items?'))return;
+  // Clear freehand lines
   sketchHistory=[];
   if(sketchCtx&&sketchDrawCanvas){
     sketchCtx.clearRect(0,0,sketchDrawCanvas.width,sketchDrawCanvas.height);
   } else {
-    // Canvas not yet initialized — just reset state
     sketchInited=false;
   }
+  // Clear all stamps
+  stampObjects=[];
+  selectedStamp=-1;
+  activeStamp=null;
+  draggingStamp=false;
+  if(stampCtx&&stampCanvas){
+    stampCtx.clearRect(0,0,stampCanvas.width,stampCanvas.height);
+  }
+  // Reset stamp UI
+  document.querySelectorAll('.stamp-btn').forEach(b=>b.classList.remove('active'));
+  const bar=document.getElementById('stampActiveBar');
+  if(bar)bar.style.display='none';
+  // Make sure draw canvas is back on top
+  if(sketchDrawCanvas)sketchDrawCanvas.style.pointerEvents='auto';
+  if(stampCanvas)stampCanvas.style.pointerEvents='none';
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('t-active'));
+  const wallBtn=document.getElementById('tb_walls');
+  if(wallBtn){wallBtn.classList.add('t-active');wallBtn.style.borderWidth='2px';}
+  sketchTool='walls';
   showToast('Sketch cleared');
 }
 
